@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mueve a diagonal simplificado 2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .controles {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px;
+        }
+
+        .botones {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            border: 2px solid darkgray;
+            border-radius: 10px;
+            background: radial-gradient(ellipse at center, rgba(165, 165, 165, 1) 0%, rgba(165, 165, 165, 1) 10%, rgb(255, 255, 255) 100%);
+        }
+
+        .btn {
+            height: 40px;
+            width: 40px;
+            cursor: pointer;
+            border: none;
+            color: darkmagenta;
+            background-color: transparent;
+        }
+
+        .btn:hover {
+            font-size: 1.5rem;
+            text-shadow: 0 0 10px rgb(156, 94, 180);
+        }
+
+        #move_center:hover {
+            text-shadow: 0 0 10px white;
+        }
+
+        #move_center {
+            border: none;
+            border-radius: 0;
+        }
+
+        .desplazamiento {
+            display: flex;
+            flex-direction: column;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid darkgray;
+            border-radius: 20px;
+            padding: 17px;
+        }
+
+        .out_pasos {
+            width: 50px;
+            text-align: center;
+        }
+
+
+        #pizarra {
+            height: 520px;
+            width: 700px;
+            border: 2px solid;
+            position: relative;
+            margin: auto;
+            background-color: rgb(51, 51, 51);
+        }
+
+        #ficha {
+            height: 40px;
+            width: 40px;
+            position: absolute;
+            top: calc(50% - 20px);
+            left: calc(50% - 20px);
+            animation: rotacion .5s linear infinite;
+            animation-play-state: paused;
+            transition: all .5s ease;
+        }
+
+        .ficha_basic {
+            border: 1px solid darkgray;
+            background-color: darkmagenta;
+        }
+
+        .ficha_foto {
+            background-image: url('imgs/neuvi.webp');
+            background-size: contain;
+        }
+
+        @keyframes rotacion {
+            from {
+                transform: rotateZ(0);
+            }
+
+            to {
+                transform: rotateZ(720deg);
+            }
+        }
+
+        .controles_extra {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            justify-content: center;
+            margin: 20px;
+            gap: 20px;
+        }
+
+        .controles_extra button {
+            padding: .2rem .5rem;
+            font-size: .9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="contenedor">
+        <div class="controles">
+            <div class="botones">
+                <button id="move_up_left" class="btn">&#9700;</button>
+                <button id="move_up" class="btn">&#9650;</button>
+                <button id="move_up_right" class="btn">&#9701;</button>
+                <button id="move_left" class="btn">&#9664;</button>
+                <button id="move_center" class="btn">&#9670;</button>
+                <button id="move_right" class="btn">&#9654;</button>
+                <button id="move_down_left" class="btn">&#9699;</button>
+                <button id="move_down" class="btn">&#9660;</button>
+                <button id="move_down_right" class="btn">&#9698;</button>
+            </div>
+            <div class="desplazamiento">
+                <label for="in_pasos">Horizontal</label>
+                <input type="range" name="pasos" id="in_pasos_horiz" min="10" max="200" step="10">
+                <input type="text" name="out_pasos_horiz" id="out_pasos_horiz" class="out_pasos" disabled>
+            </div>
+            <div class="desplazamiento">
+                <label for="in_pasos">Vertical</label>
+                <input type="range" name="pasos" id="in_pasos_vert" min="10" max="200" step="10">
+                <input type="text" name="out_pasos_vert" id="out_pasos_vert" class="out_pasos" disabled>
+            </div>
+        </div>
+        <div id="pizarra">
+            <div id="ficha" class="ficha_basic"></div>
+        </div>
+        <div class="controles_extra">
+            <button id="btn_cambiaficha">Cambia la ficha</button>
+            <button id="btn_girar">Hazla girar</button>
+            <button id="btn_reset">Resetea la pizarra</button>
+        </div>
+    </div>
+
+    <script>
+
+        // establecemos las variables globales
+
+        let pasos_horiz, pasos_vert;
+        let getFicha = document.getElementById('ficha');
+        let getPizarra = document.getElementById('pizarra');
+        let clase = getFicha.className;
+        let rotar = 'paused';
+
+        // establecemos un valor central para top y bottom, para que los calculos partan del medio
+
+
+
+
+        //creamos una funcion para centrar la ficha cuando esté desplazada
+        // aqui los valores los reestablecemos a los iniciales, para poder empezar los calculos de nuevo cuando volvamos a mover la ficha (si no lo hacemos, el desplazamiento se acumula)
+
+        function centrarFicha() {
+            getFicha.style.top = 'calc(50% - 20px)';
+            getFicha.style.left = 'calc(50% - 20px)';
+
+            vertical = getFicha.offsetTop;
+            horizontal = getFicha.offsetLeft
+
+            // vertical = parseInt(240);
+            // horizontal = parseInt(330)
+
+        }
+
+        //creamos una funcion para conseguir el valor del desplazamiento, y para poderla mostrar en pantalla
+
+        function getSteps() {
+            pasos_horiz = parseInt(document.getElementById('in_pasos_horiz').value);
+            pasos_vert = parseInt(document.getElementById('in_pasos_vert').value);
+
+            document.getElementById('out_pasos_horiz').value = pasos_horiz;
+            document.getElementById('out_pasos_vert').value = pasos_vert;
+        }
+
+        //esta funcion mueve hacia arriba
+        //cogemos el valor del desplazamiento con la funcion getSteps
+        //establecemos la variable del movimiento, que parte del centro, y la variamos con el numero de pasos. Cambiamos el atributo top aplicando la variable subir, y modificamos el valor de nuestra variable inicial, para que en el siguiente movimiento parta de la nueva posicion.
+        //repetimos lo mismo para las otras tres funciones
+
+        function moverArriba() {
+            getSteps();
+
+            let vertical = getFicha.offsetTop;
+
+            vertical -= pasos_vert;
+
+            if (vertical < 0) {
+                vertical = 0;
+            }
+            getFicha.style.top = vertical + 'px';
+
+            console.log('Vertical: ' + vertical + ' - Pasos: ' + pasos_vert)
+
+        }
+
+        //esta funcion mueve hacia abajo
+
+        function moverAbajo() {
+            getSteps();
+
+            let vertical = getFicha.offsetTop;
+            let altoFicha = getFicha.offsetHeight;
+            let altoPiz = getPizarra.offsetHeight;
+
+            vertical += pasos_vert;
+
+            if (vertical >= (altoPiz - altoFicha - 3)) {
+                vertical = altoPiz - altoFicha - 3;
+            }
+            getFicha.style.top = vertical + 'px';
+
+            console.log('Vertical: ' + vertical + ' - Pasos: ' + pasos_vert)
+        }
+
+        //esta funcion mueve a la derecha
+
+        function moverDerecha() {
+            getSteps();
+
+            let horizontal = getFicha.offsetLeft;
+            let anchoFicha = getFicha.offsetWidth;
+            let anchoPiz = getPizarra.offsetWidth;
+
+            horizontal += pasos_horiz;
+
+            if (horizontal >= (anchoPiz - anchoFicha - 3)) {
+                horizontal = anchoPiz - anchoFicha - 3;
+            }
+            getFicha.style.left = horizontal + 'px';
+
+            console.log('Horizontal: ' + horizontal + ' - Pasos: ' + pasos_horiz)
+        }
+
+        function moverIzq() {
+            getSteps();
+
+            let horizontal = getFicha.offsetLeft;
+
+            horizontal -= pasos_horiz;
+
+            if (horizontal < 0) {
+                horizontal = 0;
+            }
+            getFicha.style.left = horizontal + 'px';
+
+            console.log('Horizontal: ' + horizontal + ' - Pasos: ' + pasos_horiz)
+        }
+
+        //creo las funciones diagonales, combinando las anteriores
+
+        function moverArribaIzq() {
+            moverArriba();
+            moverIzq();
+        }
+
+        function moverArribaDcha() {
+            moverArriba();
+            moverDerecha();
+        }
+
+        function moverAbajoIzq() {
+            moverAbajo();
+            moverIzq();
+        }
+
+        function moverAbajoDcha() {
+            moverAbajo();
+            moverDerecha();
+        }
+
+        //Creamos las funciones extra
+
+        // Hacemos la funcion para girar
+
+        function girar() {
+            console.log(rotar);
+            if (rotar == 'paused') {
+                rotar = 'running';
+            } else {
+                rotar = 'paused';
+            }
+
+            getFicha.style.animationPlayState = rotar;
+            console.log(rotar);
+        }
+
+
+
+        // Hacemos la función para cambiar la imagen
+
+        function cambiarImagen() {
+            if (clase == 'ficha_basic') {
+                clase = 'ficha_foto';
+            } else {
+                clase = 'ficha_basic';
+            }
+            getFicha.className = clase;
+        }
+
+        // Función reseteo
+
+        function reseteaPizarra() {
+            centrarFicha();
+            getFicha.className = 'ficha_basic';
+            getFicha.style.animationPlayState = 'paused';
+        }
+
+
+        //asignamos las funciones a los botones, y ademas escribimos un evento para cuando utilicemos la barra de desplazamiento
+
+        document.getElementById('in_pasos_horiz').onchange = getSteps;
+        document.getElementById('in_pasos_vert').onchange = getSteps;
+
+        document.getElementById('move_up_left').onmouseover = moverArribaIzq;
+        document.getElementById('move_up').onmouseover = moverArriba;
+        document.getElementById('move_up_right').onmouseover = moverArribaDcha;
+        document.getElementById('move_down_left').onmouseover = moverAbajoIzq;
+        document.getElementById('move_down').onmouseover = moverAbajo;
+        document.getElementById('move_down_right').onmouseover = moverAbajoDcha;
+        document.getElementById('move_left').onmouseover = moverIzq;
+        document.getElementById('move_right').onmouseover = moverDerecha;
+        document.getElementById('move_center').onmouseover = centrarFicha;
+
+        document.getElementById('btn_girar').onclick = girar;
+        document.getElementById('btn_cambiaficha').onclick = cambiarImagen;
+        document.getElementById('btn_reset').onclick = reseteaPizarra;
+
+
+
+        window.addEventListener('load', () => {
+
+            window.onkeydown = function (event) {
+                if (event.key === 'ArrowRight') {
+                    moverDerecha();
+                    
+                } else if (event.key === 'ArrowLeft') {
+                    moverIzq();
+                    // Left Arrow pressed
+                } else if (event.key === 'ArrowUp') {
+                    moverArriba();
+                    // Up Arrow pressed
+                } else if (event.key === 'ArrowDown') {
+                    moverAbajo();
+                    // Down Arrow pressed
+                } else if (event.key === 'Enter') {
+                    centrarFicha();
+                }
+
+            };
+        });
+
+
+
+        getSteps();
+
+    </script>
+
+</body>
+
+
+</html>
